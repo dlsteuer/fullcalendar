@@ -227,7 +227,7 @@ function Calendar(element, instanceOptions) {
 	var isFetchNeeded = t.isFetchNeeded;
 	var fetchEvents = t.fetchEvents;
 
-
+    ResourceManager.call(t, options);
 
 	// Locals
 	// -----------------------------------------------------------------------------------
