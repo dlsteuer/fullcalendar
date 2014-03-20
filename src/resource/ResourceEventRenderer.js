@@ -45,6 +45,7 @@ function ResourceEventRenderer() {
     var calendar = t.calendar;
     var formatDate = calendar.formatDate;
     var formatRange = calendar.formatRange;
+    var getEventEnd = calendar.getEventEnd;
     var resources = t.getResources;
 
 
@@ -106,7 +107,7 @@ function ResourceEventRenderer() {
                     resourceEvents,
                     visEventEnds,
                     d,
-                    d.clone().add('minutes', maxMinute-minMinute)
+                    d.clone().add(maxMinute)
                 )
             );
             countForwardSegs(col);
@@ -494,7 +495,7 @@ function ResourceEventRenderer() {
         var colCnt = getColCnt();
         var colWidth = getColWidth();
         var snapHeight = getSnapHeight();
-        var snapMinutes = getSnapMinutes();
+        var snapDuration = getSnapMinutes();
 
         // states
         var origPosition; // original position of the element, not the mouse
@@ -503,7 +504,10 @@ function ResourceEventRenderer() {
         var isAllDay, prevIsAllDay;
         var colDelta, prevColDelta;
         var dayDelta; // derived from colDelta
-        var minuteDelta, prevMinuteDelta;
+        var snapDelta, prevSnapDelta; // the number of snaps away from the original position
+
+        // newly computed
+        var eventStart, eventEnd;
 
         eventElement.draggable({
             scroll: false,
@@ -525,8 +529,10 @@ function ResourceEventRenderer() {
                 isAllDay = prevIsAllDay = getIsCellAllDay(origCell);
                 colDelta = prevColDelta = 0;
                 dayDelta = 0;
-                minuteDelta = prevMinuteDelta = 0;
+                snapDelta = prevSnapDelta = 0;
 
+                eventStart = null;
+                eventEnd = null;
             },
             drag: function(ev, ui) {
 
@@ -557,17 +563,27 @@ function ResourceEventRenderer() {
 
                     // calculate minute delta (only if over slots)
                     if (!isAllDay) {
-                        minuteDelta = Math.round((ui.position.top - origPosition.top) / snapHeight) * snapMinutes;
+                        snapDelta = Math.round((ui.position.top - origPosition.top) / snapHeight);
                     }
                 }
 
                 // any state changes?
                 if (
                     isInBounds != prevIsInBounds ||
-                        isAllDay != prevIsAllDay ||
-                        colDelta != prevColDelta ||
-                        minuteDelta != prevMinuteDelta
+                    isAllDay != prevIsAllDay ||
+                    colDelta != prevColDelta ||
+                    snapDelta != prevSnapDelta
                     ) {
+
+                    // compute new dates
+                    if (isAllDay) {
+                        eventStart = event.start.clone().stripTime();
+                        eventEnd = eventStart.clone().add(calendar.defaultAllDayEventDuration);
+                    }
+                    else {
+                        eventStart = event.start.clone().add('minutes', snapDelta * snapDuration);
+                        eventEnd = getEventEnd(event).add('minutes', snapDelta * snapDuration);
+                    }
 
                     updateUI();
 
@@ -575,7 +591,7 @@ function ResourceEventRenderer() {
                     prevIsInBounds = isInBounds;
                     prevIsAllDay = isAllDay;
                     prevColDelta = colDelta;
-                    prevMinuteDelta = minuteDelta;
+                    prevSnapDelta = snapDelta;
                 }
 
                 // if out-of-bounds, revert when done, and vice versa.
@@ -587,8 +603,19 @@ function ResourceEventRenderer() {
                 clearOverlays();
                 trigger('eventDragStop', eventElement, event, ev, ui);
 
-                if (isInBounds && (isAllDay || dayDelta || minuteDelta)) { // changed!
-                    eventDrop(this, event, dayDelta, isAllDay ? 0 : minuteDelta, isAllDay, ev, ui);
+                if (isInBounds && (isAllDay || dayDelta || snapDelta || colDelta)) { // changed!
+
+                    if (colDelta) {
+                        event.resources = [resources[origCell.col + colDelta].id];
+                    }
+
+                    eventDrop(
+                        this, // el
+                        event,
+                        eventStart,
+                        ev,
+                        ui
+                    );
                 }
                 else { // either no change or out-of-bounds (draggable has already reverted)
 
@@ -597,7 +624,7 @@ function ResourceEventRenderer() {
                     isAllDay = false;
                     colDelta = 0;
                     dayDelta = 0;
-                    minuteDelta = 0;
+                    snapDelta = 0;
 
                     updateUI();
                     eventElement.css('filter', ''); // clear IE opacity side-effects
@@ -618,26 +645,27 @@ function ResourceEventRenderer() {
                 if (isAllDay) {
                     timeElement.hide();
                     eventElement.draggable('option', 'grid', null); // disable grid snapping
-                    renderDayOverlay(
-                        event.start.clone().add('days', dayDelta),
-                        event.end.clone().add('days', dayDelta)
-                    );
+                    renderDayOverlay(eventStart, eventEnd);
                 }
                 else {
-                    updateTimeText(minuteDelta);
+                    updateTimeText();
                     timeElement.css('display', ''); // show() was causing display=inline
                     eventElement.draggable('option', 'grid', [colWidth, snapHeight]); // re-enable grid snapping
                 }
             }
         }
 
-        function updateTimeText(minuteDelta) {
-            var newStart = event.start.clone().add('minutes', minuteDelta);
-            var newEnd;
-            if (event.end) {
-                newEnd = event.end.clone().add('minutes', minuteDelta);
+        function updateTimeText() {
+            var text;
+            if (eventStart) { // must of had a state change
+                if (event.end) {
+                    text = formatRange(eventStart, eventEnd, opt('timeFormat'));
+                }
+                else {
+                    text = formatDate(eventStart, opt('timeFormat'));
+                }
+                timeElement.text(text);
             }
-            timeElement.text(formatRange(newStart, newEnd, opt('timeFormat')));
         }
 
     }

@@ -596,14 +596,14 @@ function AgendaEventRenderer() {
 				) {
 
 					// compute new dates
-					if (isAllDay) {
-						eventStart = event.start.clone().stripTime().add('days', dayDelta);
-						eventEnd = eventStart.clone().add(calendar.defaultAllDayEventDuration);
-					}
-					else {
-						eventStart = event.start.clone().add(snapDelta * snapDuration).add('days', dayDelta);
-						eventEnd = getEventEnd(event).add(snapDelta * snapDuration).add('days', dayDelta);
-					}
+                    if (isAllDay) {
+                        eventStart = event.start.clone().stripTime().add('days', dayDelta);
+                        eventEnd = eventStart.clone().add(calendar.defaultAllDayEventDuration);
+                    }
+                    else {
+                        eventStart = event.start.clone().add(snapDelta * snapDuration).add('days', dayDelta);
+                        eventEnd = getEventEnd(event).add(snapDelta * snapDuration).add('days', dayDelta);
+                    }
 
 					updateUI();
 

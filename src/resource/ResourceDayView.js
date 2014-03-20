@@ -8,6 +8,7 @@ function ResourceDayView(element, calendar) {
 
     // exports
     t.render = render;
+    t.incrementDate = incrementDate;
 
 
     // imports
@@ -18,6 +19,11 @@ function ResourceDayView(element, calendar) {
     var formatDate = calendar.formatDate;
     var getResources = t.getResources;
 
+    function incrementDate(date, delta) {
+        var out = date.clone().stripTime().add('days', delta);
+        out = t.skipHiddenDays(out, delta < 0 ? -1 : 1);
+        return out;
+    }
 
     function render(date, delta) {
 
