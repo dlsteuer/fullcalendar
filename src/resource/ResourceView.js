@@ -31,7 +31,7 @@ function ResourceView(element, calendar, viewName) {
     t.setHeight = setHeight;
     t.afterRender = afterRender;
     t.defaultEventEnd = defaultEventEnd;
-    t.timePosition = timePosition;
+    t.computeDateTop = computeDateTop;
     t.getIsCellAllDay = getIsCellAllDay;
     t.allDayRow = getAllDayRow;
     t.getCoordinateGrid = function() { return coordinateGrid }; // specifically for AgendaEventRenderer
@@ -602,15 +602,24 @@ function ResourceView(element, calendar, viewName) {
 
 
     function renderSlotOverlay(overlayStart, overlayEnd) {
-        for (var i=0; i<colCnt; i++) {
+
+        // normalize, because dayStart/dayEnd have stripped time+zone
+        overlayStart = overlayStart.clone().stripZone();
+        overlayEnd = overlayEnd.clone().stripZone();
+
+        for (var i=0; i<colCnt; i++) { // loop through the day columns
+
             var dayStart = cellToDate(0, i);
             var dayEnd = dayStart.clone().add('days', 1);
-            var stretchStart = new Date(Math.max(dayStart, overlayStart));
-            var stretchEnd = new Date(Math.min(dayEnd, overlayEnd));
+
+            var stretchStart = dayStart < overlayStart ? overlayStart : dayStart; // the max of the two
+            var stretchEnd = dayEnd < overlayEnd ? dayEnd : overlayEnd; // the min of the two
+
             if (stretchStart < stretchEnd) {
                 var rect = coordinateGrid.rect(0, i, 0, i, slotContainer); // only use it for horizontal coords
-                var top = timePosition(dayStart, stretchStart);
-                var bottom = timePosition(dayStart, stretchEnd);
+                var top = computeDateTop(stretchStart, dayStart);
+                var bottom = computeDateTop(stretchEnd, dayStart);
+
                 rect.top = top;
                 rect.height = bottom - top;
                 slotBind(
@@ -701,7 +710,7 @@ function ResourceView(element, calendar, viewName) {
             slotIndex--;
         }
         if (slotIndex >= 0) {
-            addMinutes(d, minMinute + slotIndex * snapMinutes);
+            d.add('minute', minMinute + slotIndex * snapMinutes);
         }
         return d;
     }
@@ -740,30 +749,46 @@ function ResourceView(element, calendar, viewName) {
         return top;
     }
 
+    function computeDateTop(date, startOfDayDate) {
+        return computeTimeTop(
+            moment.duration(
+                    date.clone().stripZone() - startOfDayDate.clone().stripTime()
+            )
+        );
+    }
 
-    // get the Y coordinate of the given time on the given day (both Date objects)
-    function timePosition(day, time) { // both date objects. day holds 00:00 of current day
-        day = day.clone();
-        if (time < day.clone().add('minutes', minMinute)) {
+
+    function computeTimeTop(time) { // time is a duration
+
+        if (time < minMinute) {
             return 0;
         }
-        if (time >= day.clone().add('minutes', maxMinute)) {
+        if (time >= maxMinute) {
             return slotTable.height();
         }
-        var slotMinutes = opt('slotMinutes'),
-            minutes = time.hours()*60 + time.minutes() - minMinute,
-            slotI = Math.floor(minutes / slotMinutes),
-            slotTop = slotTopCache[slotI];
+
+        var slots = (time - minMinute) / slotDuration;
+        var slotIndex = Math.floor(slots);
+        var slotPartial = slots - slotIndex;
+        var slotTop = slotTopCache[slotIndex];
+
+        // find the position of the corresponding <tr>
+        // need to use this technique because not all rows are rendered at same height sometimes.
         if (slotTop === undefined) {
-            slotTop = slotTopCache[slotI] =
-                slotTable.find('tr').eq(slotI).find('td div')[0].offsetTop;
+            slotTop = slotTopCache[slotIndex] =
+                slotTable.find('tr').eq(slotIndex).find('td div')[0].offsetTop;
             // .eq() is faster than ":eq()" selector
             // [0].offsetTop is faster than .position().top (do we really need this optimization?)
             // a better optimization would be to cache all these divs
         }
-        return Math.max(0, Math.round(
-            slotTop - 1 + slotHeight * ((minutes % slotMinutes) / slotMinutes)
-        ));
+
+        var top =
+            slotTop - 1 + // because first row doesn't have a top border
+            slotPartial * slotHeight; // part-way through the row
+
+        top = Math.max(top, 0);
+
+        return top;
     }
 
 
@@ -812,8 +837,8 @@ function ResourceView(element, calendar, viewName) {
             var col = dateToCell(startDate).col;
             if (col >= 0 && col < colCnt) { // only works when times are on same day
                 var rect = coordinateGrid.rect(0, col, 0, col, slotContainer); // only for horizontal coords
-                var top = timePosition(startDate, startDate);
-                var bottom = timePosition(startDate, endDate);
+                var top = computeDateTop(startDate, startDate);
+                var bottom = computeDateTop(endDate, startDate);
                 if (bottom > top) { // protect against selections that are entirely before or after visible range
                     rect.top = top;
                     rect.height = bottom - top;

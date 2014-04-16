@@ -237,9 +237,7 @@ function ResourceEventRenderer() {
                     outerWidth = availWidth;
                 }
             }
-            left = leftmost +                                  // leftmost possible
-                (availWidth / (levelI + forward + 1) * levelI) // indentation
-                    * dis + (rtl ? availWidth - outerWidth : 0);   // rtl
+            left = leftmost + (availWidth / (levelI + forward + 1) * levelI) * dis + (rtl ? availWidth - outerWidth : 0);   // rtl
             seg.top = top;
             seg.left = left;
             seg.outerWidth = outerWidth;
@@ -423,7 +421,7 @@ function ResourceEventRenderer() {
                             // on full-days
                             renderDayOverlay(
                                 event.start.clone().add('days', dayDelta),
-                                event.end.clone().add('days', -1).add('days', dayDelta)
+                                getEventEnd(event).add('days', dayDelta)
                             );
                             resetElement();
                         }else{
@@ -465,14 +463,22 @@ function ResourceEventRenderer() {
                     showEvents(event, eventElement);
                 }else{
                     // changed!
-                    var minuteDelta = 0;
+                    var eventStart = event.start.clone().add('days', dayDelta); // already assumed to have a stripped time
+                    var snapTime;
+                    var snapIndex;
                     if (!allDay) {
-                        minuteDelta = Math.round((eventElement.offset().top - getSlotContainer().offset().top) / snapHeight)
-                            * snapMinutes
-                            + minMinute
-                            - (event.start.getHours() * 60 + event.start.getMinutes());
+                        snapIndex = Math.round((eventElement.offset().top - getSlotContainer().offset().top) / snapHeight); // why not use ui.offset.top?
+                        snapTime = moment.duration(minMinute + snapIndex * snapMinutes);
+                        eventStart = calendar.rezoneDate(eventStart.clone().time(snapTime));
                     }
-                    eventDrop(this, event, dayDelta, minuteDelta, allDay, ev, ui);
+
+                    eventDrop(
+                        this, // el
+                        event,
+                        eventStart,
+                        ev,
+                        ui
+                    );
                 }
             }
         });
