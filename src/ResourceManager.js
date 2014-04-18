@@ -44,7 +44,7 @@ function ResourceManager(options) {
     function fetchResources(useCache, currentView) {
         // if useCache is not defined, default to true
         useCache = (typeof useCache !== 'undefined' ? useCache : true);
-        if (cache != undefined && useCache) {
+        if (cache !== undefined && useCache) {
             // get from cache
             return cache;
         } else {
@@ -96,7 +96,7 @@ function ResourceManager(options) {
                         resources = res;
                     },
                     error: function() {
-                        alert("ajax error getting json from " + url);
+                        applyAll(source.error, this, arguments);
                     },
                     async: false // too much work coordinating callbacks so dumb it down
                 }));

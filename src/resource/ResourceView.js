@@ -8,10 +8,10 @@ setDefaults({
     defaultEventMinutes: 120,
     axisFormat: generateAgendaAxisFormat,
     timeFormat: {
-        agenda: generateAgendaTimeFormat
+        resourceDay: generateAgendaTimeFormat
     },
     dragOpacity: {
-        agenda: .5
+        resourceDay: .5
     },
     minTime: '00:00:00',
     maxTime: '24:00:00'
@@ -34,22 +34,22 @@ function ResourceView(element, calendar, viewName) {
     t.computeDateTop = computeDateTop;
     t.getIsCellAllDay = getIsCellAllDay;
     t.allDayRow = getAllDayRow;
-    t.getCoordinateGrid = function() { return coordinateGrid }; // specifically for AgendaEventRenderer
-    t.getHoverListener = function() { return hoverListener };
+    t.getCoordinateGrid = function() { return coordinateGrid; }; // specifically for AgendaEventRenderer
+    t.getHoverListener = function() { return hoverListener; };
     t.colLeft = colLeft;
     t.colRight = colRight;
     t.colContentLeft = colContentLeft;
     t.colContentRight = colContentRight;
-    t.getDaySegmentContainer = function() { return daySegmentContainer };
-    t.getSlotSegmentContainer = function() { return slotSegmentContainer };
-    t.getMinMinute = function() { return minMinute };
-    t.getMaxMinute = function() { return maxMinute };
-    t.getSlotContainer = function() { return slotContainer };
-    t.getRowCnt = function() { return 1 };
-    t.getColCnt = function() { return colCnt };
-    t.getColWidth = function() { return colWidth };
-    t.getSnapHeight = function() { return snapHeight };
-    t.getSnapMinutes = function() { return snapMinutes };
+    t.getDaySegmentContainer = function() { return daySegmentContainer; };
+    t.getSlotSegmentContainer = function() { return slotSegmentContainer; };
+    t.getMinMinute = function() { return minMinute; };
+    t.getMaxMinute = function() { return maxMinute; };
+    t.getSlotContainer = function() { return slotContainer; };
+    t.getRowCnt = function() { return 1; };
+    t.getColCnt = function() { return colCnt; };
+    t.getColWidth = function() { return colWidth; };
+    t.getSnapHeight = function() { return snapHeight; };
+    t.getSnapMinutes = function() { return snapMinutes; };
     t.defaultSelectionEnd = defaultSelectionEnd;
     t.renderDayOverlay = renderDayOverlay;
     t.renderSelection = renderSelection;
@@ -153,7 +153,7 @@ function ResourceView(element, calendar, viewName) {
     function updateOptions() {
 
         tm = opt('theme') ? 'ui' : 'fc';
-        rtl = opt('isRTL')
+        rtl = opt('isRTL');
         minMinute = moment.duration(opt('minTime'));
         maxMinute = moment.duration(opt('maxTime'));
         colFormat = opt('columnFormat');
@@ -186,7 +186,7 @@ function ResourceView(element, calendar, viewName) {
         var i;
         var maxd;
         var minutes;
-        var slotNormal = opt('slotMinutes') % 15 == 0;
+        var slotNormal = opt('slotMinutes') % 15 === 0;
 
         buildDayTable();
 
@@ -567,7 +567,6 @@ function ResourceView(element, calendar, viewName) {
     }
 
 
-
     /* Semi-transparent Overlay Helpers
      -----------------------------------------------------*/
     // TODO: should be consolidated with BasicView's methods
@@ -595,7 +594,7 @@ function ResourceView(element, calendar, viewName) {
     }
 
 
-    function renderCellOverlay(row0, col0, row1, col1) { // only for all-day?
+    function renderCellOverlay(row0, col0, row1, col1, event) { // only for all-day?
         var rect = coordinateGrid.rect(row0, col0, row1, col1, slotLayer);
         return renderOverlay(rect, slotLayer);
     }
@@ -616,6 +615,8 @@ function ResourceView(element, calendar, viewName) {
             var stretchEnd = dayEnd < overlayEnd ? dayEnd : overlayEnd; // the min of the two
 
             if (stretchStart < stretchEnd) {
+                t.selectedResource = resources[i];
+
                 var rect = coordinateGrid.rect(0, i, 0, i, slotContainer); // only use it for horizontal coords
                 var top = computeDateTop(stretchStart, dayStart);
                 var bottom = computeDateTop(stretchEnd, dayStart);
@@ -713,40 +714,6 @@ function ResourceView(element, calendar, viewName) {
             d.add('minute', minMinute + slotIndex * snapMinutes);
         }
         return d;
-    }
-
-
-    function computeTimeTop(time) { // time is a duration
-
-        if (time < minMinute) {
-            return 0;
-        }
-        if (time >= maxMinute) {
-            return slotTable.height();
-        }
-
-        var slots = (time - minMinute) / slotDuration;
-        var slotIndex = Math.floor(slots);
-        var slotPartial = slots - slotIndex;
-        var slotTop = slotTopCache[slotIndex];
-
-        // find the position of the corresponding <tr>
-        // need to use this technique because not all rows are rendered at same height sometimes.
-        if (slotTop === undefined) {
-            slotTop = slotTopCache[slotIndex] =
-                slotTable.find('tr').eq(slotIndex).find('td div')[0].offsetTop;
-            // .eq() is faster than ":eq()" selector
-            // [0].offsetTop is faster than .position().top (do we really need this optimization?)
-            // a better optimization would be to cache all these divs
-        }
-
-        var top =
-            slotTop - 1 + // because first row doesn't have a top border
-                slotPartial * slotHeight; // part-way through the row
-
-        top = Math.max(top, 0);
-
-        return top;
     }
 
     function computeDateTop(date, startOfDayDate) {
@@ -938,7 +905,7 @@ function ResourceView(element, calendar, viewName) {
             clearOverlays();
             if (cell) {
                 if (getIsCellAllDay(cell)) {
-                    renderCellOverlay(cell.row, cell.col, cell.row, cell.col);
+                    renderCellOverlay(cell.row, cell.col, cell.row, cell.col, ev);
                 }else{
                     var d1 = realCellToDate(cell);
                     var d2 = d1.clone().add('minutes', opt('defaultEventMinutes'));

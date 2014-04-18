@@ -68,7 +68,7 @@ function SelectionManager() {
 	
 	function reportSelection(start, end, ev) {
 		selected = true;
-		trigger('select', null, start, end, ev);
+		trigger('select', null, start, end, ev, t.selectedResource);
 	}
 	
 	

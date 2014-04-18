@@ -23,12 +23,11 @@ function ResourceEventRenderer() {
     var getHoverListener = t.getHoverListener;
     var getMaxMinute = t.getMaxMinute;
     var getMinMinute = t.getMinMinute;
-    var timePosition = t.timePosition;
     var getIsCellAllDay = t.getIsCellAllDay;
     var colContentLeft = t.colContentLeft;
     var colContentRight = t.colContentRight;
     var cellToDate = t.cellToDate;
-    var segmentCompare = t.segmentCompare;
+    var computeDateTop = t.computeDateTop;
     var getColCnt = t.getColCnt;
     var getColWidth = t.getColWidth;
     var getSnapHeight = t.getSnapHeight;
@@ -161,14 +160,14 @@ function ResourceEventRenderer() {
                 });
             }
         }
-        return segs.sort(segmentCompare);
+        return segs.sort(compareSlotSegs);
     }
 
     function eventsForResource(resource, events) {
         var resourceEvents = [];
         for (var i = 0; i < events.length; i++) {
             if (events[i].resources && $.inArray(resource.id, events[i].resources) >= 0) {
-                resourceEvents.push(events[i])
+                resourceEvents.push(events[i]);
             }
         }
         return resourceEvents;
@@ -207,7 +206,8 @@ function ResourceEventRenderer() {
             slotSegmentContainer = getSlotSegmentContainer(),
             rtl, dis;
 
-        if (rtl = opt('isRTL')) {
+        rtl = opt('isRTL');
+        if (rtl) {
             dis = -1;
         }else{
             dis = 1;
@@ -217,8 +217,8 @@ function ResourceEventRenderer() {
         for (i=0; i<segCnt; i++) {
             seg = segs[i];
             event = seg.event;
-            top = timePosition(seg.start, seg.start);
-            bottom = timePosition(seg.start, seg.end);
+            top = computeDateTop(seg.start, seg.start);
+            bottom = computeDateTop(seg.end, seg.start);
             colI = seg.col;
             levelI = seg.level;
             forward = seg.forward || 0;
@@ -281,7 +281,8 @@ function ResourceEventRenderer() {
         // record event sides and title positions
         for (i=0; i<segCnt; i++) {
             seg = segs[i];
-            if (eventElement = seg.element) {
+            var isCorrectElement = eventElement = seg.element;
+            if (isCorrectElement) {
                 seg.vsides = vsides(eventElement, true);
                 seg.hsides = hsides(eventElement, true);
                 titleElement = eventElement.find('.fc-event-title');
@@ -294,7 +295,8 @@ function ResourceEventRenderer() {
         // set all positions/dimensions at once
         for (i=0; i<segCnt; i++) {
             seg = segs[i];
-            if (eventElement = seg.element) {
+            var isCorrectElement = eventElement = seg.element;
+            if (isCorrectElement) {
                 eventElement[0].style.width = Math.max(0, seg.outerWidth - seg.hsides) + 'px';
                 height = Math.max(0, seg.outerHeight - seg.vsides);
                 eventElement[0].style.height = height + 'px';
@@ -785,4 +787,15 @@ function countForwardSegs(levels) {
 
 function agendaSegsCollide(seg1, seg2) {
     return seg1.end > seg2.start && seg1.start < seg2.end;
+}
+
+
+
+
+// A cmp function for determining which segment should be closer to the initial edge
+// (the left edge on a left-to-right calendar).
+function compareSlotSegs(seg1, seg2) {
+    return seg1.start - seg2.start || // earlier start time goes first
+        (seg2.end - seg2.start) - (seg1.end - seg1.start) || // tie? longer-duration goes first
+        (seg1.event.title || '').localeCompare(seg2.event.title); // tie? alphabetically by title
 }
